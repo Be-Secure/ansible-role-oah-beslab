@@ -1,0 +1,37 @@
+---
+# tasks file for python_role
+- name: Check if BESLAB_PYTHON_VERSION environment variable is set
+  shell: echo $BESLAB_PYTHON_VERSION
+  register: python_version_env
+  changed_when: false
+
+- name: Check python version
+  shell: python3 --version 2>&1
+  register: python_output
+  ignore_errors: yes
+  changed_when: false
+
+- name: Set Python version from env
+  set_fact:
+    python_version: "{{ lookup('env', 'BESLAB_PYTHON_VERSION') }}"
+  when: python_version_env is defined and python_version_env != '' and python_output is not defined
+
+- name: Install python
+  apt:
+    name: "{{ python_version }}"
+    state: present
+  when: python_output is not defined
+
+- name: Check pip version
+  shell: python3 -m pip --version 2>&1
+  register: pip_version
+  ignore_errors: yes
+  changed_when: false
+
+- name: Install pip for Python
+  package:
+    name: python-pip
+    state: latest
+  become: yes
+  when: pip_version is not defined
+  

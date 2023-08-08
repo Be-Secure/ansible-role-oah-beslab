@@ -1,0 +1,25 @@
+---
+- name: Install required packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  become: true
+  loop:
+    - ca-certificates
+    - curl
+    - openssh-server
+    - tzdata
+    - debian-archive-keyring
+    - lsb-release
+    - apt-transport-https 
+    - software-properties-common
+
+- name: Configure GitLab repository 
+  shell: curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+
+- name: Install gitlab
+  become: yes
+  apt:
+    name: gitlab-ce
+  update_cache: yes

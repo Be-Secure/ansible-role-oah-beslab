@@ -1,0 +1,37 @@
+---
+
+- name: Check if BESLAB_SBOM_VERSION environment variable is set
+  shell: echo $BESLAB_SBOM_VERSION
+  register: sbom_version_env
+  changed_when: false
+
+- name: Check if artifact path is set
+  shell: echo $BESLAB_ARTIFACT_DIR
+  register: sbom_artifact_path
+  changed_when: false
+
+- name: Set spdx sbom generator version from env
+  set_fact:
+    spdx_sbom_generator_version: "{{ lookup('env', 'BESLAB_SBOM_VERSION') }}"
+    dir: "{{ lookup('env', 'BESLAB_ARTIFACT_DIR')}}"
+  when: sbom_version_env is defined and sbom_artifact_path is defined
+
+- name: Use default version for spdx sbom generator
+  set_fact:
+    spdx_sbom_generator_version: "{{ default_spdx_sbom_generator_version }}"
+    dir: "{{ default_sbom_artifact_path }}"
+  when: sbom_version_env is not defined and sbom_artifact_path is not defined
+
+
+- name: Downloading binary
+  get_url:
+    url: https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/{{ spdx_sbom_generator_version }}/spdx-sbom-generator-{{ spdx_sbom_generator_version }}-linux-amd64.tar.gz
+    dest: "{{ dir }}"
+  become: yes
+
+- name: Extract the tar archive
+  unarchive:
+    src: "{{ dir }}/spdx-sbom-generator-{{ spdx_sbom_generator_version }}-linux-amd64.tar.gz"
+    dest: "{{ dir }}"   # Directory where the archive will be extracted
+    remote_src: yes              # Set to 'yes' if the 'src' path is on the remote host
+  become: yes           

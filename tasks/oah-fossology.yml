@@ -1,0 +1,77 @@
+---
+
+- name: Install required packages for Docker
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg
+    - lsb-release
+  become: true
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  become: true
+
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+    state: present
+  become: true
+
+- name: Update APT package cache
+  apt:
+    update_cache: yes
+  become: true
+
+- name: Install Docker
+  apt:
+    name: docker-ce
+    state: present
+  become: true
+
+- name: Ensure Docker service is started and enabled
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: true
+
+
+- name: Install python-docker requirements
+  become: yes
+  ansible.builtin.apt:
+    name:
+      - python3-docker
+    state: latest
+
+- name: Check if user exist in docker group
+  ansible.builtin.shell: |
+    grep -q /etc/group -e "docker" 
+  register: result
+
+- name: Adding user to docker group
+  become: yes
+  shell: |
+    gpasswd -a $USER docker
+    newgrp docker
+  when: result.rc != 0
+
+- name: Make sure docker is started
+  service:
+    name: docker
+    state: started
+
+- name: Pulling fossology image
+  become: yes
+  community.docker.docker_image:
+    name: fossology/fossology
+    source: pull
+    state: present
+
+

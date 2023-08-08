@@ -1,0 +1,35 @@
+---
+- name: Check if BESLAB_PACKAGE_MANAGER set
+  shell: echo $BESLAB_PACKAGE_MANAGER
+  register: package_managers_env
+  changed_when: false
+
+
+- name: Get package managers from environment variable
+  set_fact:
+    package_managers: "{{ lookup('env', 'BESLAB_PACKAGE_MANAGER') }}"
+  when: package_managers_env is defined and package_managers_env != ''
+
+- name: Get default package managers
+  set_fact:
+    package_managers: "{{ default_package_managers }}"
+  when: package_managers_env is not defined
+
+
+- name: Install gradle
+  apt:
+    name: gradle
+    state: present
+  when: "'gradle' in package_managers"
+
+- name: Install maven
+  apt:
+    name: maven
+    state: present
+  when: "'maven' in package_managers"
+
+- name: Install pip
+  package:
+    name: python3-pip
+    state: present
+  when: "'pip' in package_managers"

@@ -1,0 +1,26 @@
+---
+- name: Check if BESLAB_PUBLIC_ARTIFACT_REPO set
+  shell: echo $BESLAB_PUBLIC_ARTIFACT_REPO
+  register: public_artifact_repo_env
+  changed_when: false
+
+- name: Get repos from environment variable
+  set_fact:
+    public_repos: "{{ lookup('env', 'BESLAB_PUBLIC_ARTIFACT_REPO') }}"
+  when: public_artifact_repo_env is defined and public_artifact_repo_env != ''
+
+- name: Get default repos
+  set_fact:
+    public_repos: "{{ default_public_artifact_repo }}"
+  when: public_artifact_repo_env is not defined
+
+- name: Install java
+  include_tasks: oah-java.yml
+  when: "'maven' in public_repos"
+
+- name: Install maven
+  apt:
+    name: maven
+    state: present
+  when: "'maven' in public_repos"
+

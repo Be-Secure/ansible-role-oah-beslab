@@ -1,0 +1,43 @@
+---
+- name: Installing Java
+  include_tasks: oah-java.yml
+
+- name: Installing Python
+  include_tasks: oah-python.yml
+
+- name: Installing Docker
+  include_tasks: oah-docker.yml
+  when: "{{ lookup('env', 'BESLAB_IMAGE_REPOS') }} == docker"
+
+- name: Installing git
+  include_tasks: oah-git.yml
+  
+- name: Installing spdx-sbom-generator
+  include_tasks: oah-spdx-sbom-generator.yml
+  when: "{{ lookup('env', 'BESLAB_SBOM') }} == spdx-sbom-generator"
+
+- name: Installing Fossology
+  include_tasks: oah-fossology.yml
+  when: "{{ lookup('env', 'BESLAB_LICENSE_COMPLIANCE') }} == fossology"
+
+- name: Installing Sonarqube
+  include_tasks: oah-sonarqube.yml
+  when: "{{ lookup('env', 'BESLAB_SAST') }} == sonarqube"
+
+- name: Installing package managers
+  include_tasks: oah-package-managers.yml
+  when: "{{ lookup('env', 'BESLAB_PACKAGE_MANAGER_SCOPE') }} == public"
+
+- name: Setting up public artifactory
+  include_tasks: oah-public-artifactory.yml
+  when: "{{ lookup('env', 'BESLAB_ARTIFACT_REPO_SCOPE') }} == public"
+
+- name: Setting up private artifactory
+  include_tasks: oah-private-artifactory.yml
+  when: "{{ lookup('env', 'BESLAB_ARTIFACT_REPO_SCOPE') }} == private"
+
+- name: Setting up gitlab
+  include_tasks: oah-gitlab.yml
+  when: "{{ lookup('env', 'BESLAB_CODE_COLLABORATION_PLATFORM_SCOPE') }} == private"
+  
+  

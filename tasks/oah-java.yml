@@ -1,0 +1,55 @@
+---
+# tasks/main.yml
+- name: Check if BESLAB_JAVA_VERSION environment variable is set
+  shell: echo $BESLAB_JAVA_VERSION
+  register: java_version_env
+  changed_when: false
+
+- name: Check Java version
+  shell: java -version 2>&1
+  register: java_output
+  ignore_errors: yes
+  changed_when: false
+
+
+- name: Set Java version from env
+  set_fact:
+    java_version: "{{ lookup('env', 'BESLAB_JAVA_VERSION') }}"
+  when: java_version_env is defined
+
+- name: Uninstall current java
+  apt:
+    name: "openjdk-*"
+    state: absent
+    purge: yes
+  when: java_output != java_version_env 
+
+- name: Set default Java version
+  set_fact:
+    java_version: "{{ java_default_version }}"
+  when: java_version_env is not defined
+
+- name: Debug Java version
+  debug:
+    var: java_version  # Check the value of java_version (optional, for troubleshooting purposes)
+
+- name: Install Java on Ubuntu
+  apt:
+    name: "openjdk-{{ java_version }}-jdk"
+    state: present
+
+# - name: Set JAVA_HOME environment variable
+#   set_fact:
+#     ansible_env:
+#       JAVA_HOME: "{{ java_install_dir }}"
+#       PATH: "$PATH:{{ java_install_dir }}/bin"
+
+# - name: "Export java home"
+#   shell: export JAVA_HOME="{{ java_install_dir }}/bin"
+
+# - name: Ensure that the alternatives system is used to manage Java installations
+#   command: update-alternatives --set java {{ java_install_dir }}/bin/java
+#   args:
+#     creates: /usr/bin/java
+#   become: yes
+
