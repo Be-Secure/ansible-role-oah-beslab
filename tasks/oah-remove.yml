@@ -1,0 +1,62 @@
+---
+- name: Uninstall java
+  apt:
+    name: "openjdk-*"
+    state: absent
+    purge: yes
+  
+- name: Remove sonarqube
+  file:
+    path: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}/{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
+    state: absent
+  when: lookup('env', 'BESLAB_ARTIFACT_PATH', default='') != '' and lookup('env', 'BESLAB_SAST_VERSION', default='') != '' and lookup('env', 'BESLAB_SAST', default='') == 'sonarqube'
+
+- name: Uninstall docker 
+  apt:
+   name: docker-ce
+   state: absent
+  become: yes
+  when: lookup('env', 'BESLAB_IMAGE_REPOS', default='') == 'docker'
+
+- name: Uninstall git
+  apt:
+    name: git
+    state: absent
+  become: yes
+
+- name: Remove spdx-sbom-generator
+  file:
+    path: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}/{{ lookup('env', 'BESLAB_SBOM') }}"
+    state: absent
+  when: lookup('env', 'BESLAB_ARTIFACT_PATH', default='') != '' and lookup('env', 'BESLAB_SBOM', default='') != '' and lookup('env', 'BESLAB_SBOM', default='') == 'spdx-sbom-generator'
+
+- name: Uninstall package managers
+  block:
+    - name: Uninstall maven
+      apt:
+        name: maven
+        state: absent
+      become: yes
+      when: "'maven' in {{ lookup('env', 'BESLAB_PACKAGE_MANAGER') }}"
+
+    - name: Uninstall gradle
+      apt:
+        name: gradle
+        state: absent
+      become: yes
+      when: "'gradle' in {{ lookup('env', 'BESLAB_PACKAGE_MANAGER') }}"
+  when: lookup('env', 'BESLAB_PACKAGE_MANAGER', default='') == 'public'
+
+- name: Remove maven artifactory
+  apt:
+    name: maven
+    state: absent
+  become: yes
+  when: lookup('env', 'BESLAB_ARTIFACT_REPO_SCOPE', default='') == 'public'
+
+- name: Remove jfrog artifactory
+  apt:
+    name: jfrog-cli-v2-jf
+    state: absent
+  become: yes
+  when: lookup('env', 'BESLAB_ARTIFACT_REPO_SCOPE', default='') == 'private'
