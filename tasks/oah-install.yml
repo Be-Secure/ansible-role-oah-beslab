@@ -371,6 +371,7 @@
       when: "'gradle' in package_managers"
 
     - name: Install maven
+      become: yes
       apt:
         name: maven
         state: present
