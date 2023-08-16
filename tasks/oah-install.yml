@@ -34,6 +34,7 @@
         var: java_version  # Check the value of java_version (optional, for troubleshooting purposes)
 
     - name: Install Java on Ubuntu
+      become: yes
       apt:
         name: "openjdk-{{ java_version }}-jdk"
         state: present
