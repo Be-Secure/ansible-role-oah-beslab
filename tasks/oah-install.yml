@@ -1,3 +1,69 @@
+---
+- name: Create user 
+  block:
+    
+    - name: Check if BESLAB_USER environment variable is set
+      shell: echo $BESLAB_USER
+      register: beslab_user_env
+      changed_when: false
+
+    - name: Check if BESLAB_PWD environment variable is set
+      shell: echo $BESLAB_PWD
+      register: beslab_pwd_env
+      changed_when: false
+
+    - name: Set user name from BESLAB_USER
+      set_fact:
+        user_name: "{{ lookup('env', 'BESLAB_USER') }}"
+      when: beslab_user_env is defined
+
+    - name: Set password from BESLAB_PWD
+      set_fact:
+        user_pwd: "{{ lookup('env', 'BESLAB_PWD') }}"
+      when: beslab_pwd_env is defined
+
+    - name: Set user from default
+      set_fact:
+        user_name: "{{ default_user_name }}"
+      when: beslab_user_env is not defined
+
+    - name: Set password from default
+      set_fact:
+        user_pwd: "{{ default_pwd }}"
+      when: beslab_pwd_env is not defined
+
+      
+    #create user groups admin or user defined
+    - name: Create user supplied group if does not exists
+      ansible.builtin.group:
+        name: "{{ user_group }}"
+        state: present
+      become: true
+
+    # Add oah user if OAH_USER env variable set or oah_user ansible variable is set
+    - name: check and add oah user if OAH_USER env variable set or oah_user ansible variable is set
+      user: 
+        name: "{{ user_name }}" 
+        password: "{{ user_pwd }}"
+        group: "{{ user_group }}"
+        system: "{{ user_system }}"
+        state: present
+      register: user_details
+      # when: (ansible_env.OAH_USER is not defined) or (user is defined)
+      become: true
+        #- debug: 
+        #var:  ansible_env.OAH_USER
+
+    # display users created if verbose option enabled
+    # 
+    - name: display the user data
+      debug:
+        var: user_details
+      when: enable_verbose == true
+  when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
+
+
+
 - name: Install java
   block:
     - name: Check if BESLAB_JAVA_VERSION environment variable is set
@@ -463,6 +529,18 @@
         update_cache: yes
   when: lookup('env', 'BESLAB_CODE_COLLABORATION_PLATFORM_SCOPE', default='') == 'private'
 
+- name: Set up Ubuntu-desktop
+  block:
+    - name: install ubuntu-desktop
+      become: yes
+      command: "{{ item }}"
+      with_items:
+              - apt-get -y update
+              - apt-get install -y --no-install-recommends ubuntu-desktop
+              - reboot
+      ignore_errors: yes
+      failed_when: false
+  when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
 
