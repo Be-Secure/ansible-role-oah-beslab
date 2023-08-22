@@ -56,10 +56,10 @@
 
     # display users created if verbose option enabled
     # 
-    - name: display the user data
-      debug:
-        var: user_details
-      when: enable_verbose == true
+    # - name: display the user data
+    #   debug:
+    #     var: user_details
+    #   when: enable_verbose == true
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
