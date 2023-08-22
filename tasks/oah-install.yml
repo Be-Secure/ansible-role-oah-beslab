@@ -213,75 +213,47 @@
 
 - name: Install docker
   block:
-    - name: Ensure old versions of Docker are not installed.
-      package:
-        name:
-          - docker
-          - docker-engine
-        state: absent
-
-    - name: Ensure dependencies are installed.
-      become: yes
+    - name: Install required packages for Docker
       apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
+        name: "{{ item }}"
         state: present
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+      become: true
 
-    - name: Ensure additional dependencies are installed (on Ubuntu < 20.04 and any other systems).
-      become: yes
-      apt:
-        name: gnupg2
-        state: present
-      when: ansible_distribution != 'Ubuntu' or ansible_distribution_version is version('20.04', '<')
-
-    - name: Ensure additional dependencies are installed (on Ubuntu >= 20.04).
-      apt:
-        name: gnupg
-        state: present
-      when: ansible_distribution == 'Ubuntu' or ansible_distribution_version is version('20.04', '>=')
-
-    - name: Add Docker apt key.
-      become: yes
+    - name: Add Docker GPG key
       apt_key:
-        url: "{{ docker_apt_gpg_key }}"
-        id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+        url: https://download.docker.com/linux/ubuntu/gpg
         state: present
-      register: add_repository_key
-      ignore_errors: "{{ docker_apt_ignore_key_error }}"
+      become: true
 
-    - name: Ensure curl is present (on older systems without SNI).
-      package: name=curl state=present
-      when: add_repository_key is failed
-
-    - name: Add Docker repository.
-      become: yes
+    - name: Add Docker repository
       apt_repository:
-        repo: "{{ docker_apt_repository }}"
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
         state: present
-        update_cache: false
+      become: true
 
-    - name: Install Docker.
-      become: yes
-      package:
-        name: "{{ docker_package }}"
-        state: "{{ docker_package_state }}"
-      notify: restart docker
-      ignore_errors: "{{ ansible_check_mode }}"
+    - name: Update APT package cache
+      apt:
+        update_cache: yes
+      become: true
 
-    - name: Configure Docker daemon options.
-      copy:
-        content: "{{ docker_daemon_options | to_nice_json }}"
-        dest: /etc/docker/daemon.json
-        mode: 0644
-      when: docker_daemon_options.keys() | length > 0
-      notify: restart docker
+    - name: Install Docker
+      apt:
+        name: docker
+        state: present
+      become: true
 
-    - name: Ensure handlers are notified now to avoid firewall conflicts.
-      meta: flush_handlers
-
-    - include_tasks: oah-docker-compose.yml
-      when: docker_install_compose | bool
+    - name: Ensure Docker service is started and enabled
+      service:
+        name: docker
+        state: started
+        enabled: yes
+      become: true
   when: lookup('env', 'BESLAB_IMAGE_REPOS', default='') == 'docker'
 
 - name: Check if git exists
