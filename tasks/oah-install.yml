@@ -150,7 +150,11 @@
   stat:
     path: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}/{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
   register: sonarqube_dir
-
+- name: Install unzip package
+  become: yes
+  apt:
+    name: unzip
+    state: present
 - name: Install sonarqube
   block:
     - name: Check if java available
