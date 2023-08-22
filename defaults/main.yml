@@ -1,5 +1,7 @@
 ---
-
+default_user_name: admin
+default_pwd: admin
+user_group: admin
 java_default_version: "11"  # Replace with the desired default Java version
 java_install_dir: "/usr/lib/jvm/java-{{ java_default_version }}-openjdk"
 
