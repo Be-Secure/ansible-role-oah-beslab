@@ -248,7 +248,7 @@
         state: present
       become: true
 
-    - name: Ensure Docker service is started and enabled
+    - name: Ensure Docker services are started and enabled
       service:
         name: docker
         state: started
