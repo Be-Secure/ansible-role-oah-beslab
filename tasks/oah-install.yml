@@ -44,6 +44,7 @@
       copy:
         src: /etc/sudoers.d/90-cloud-init-users
         dest: /etc/sudoers.d/admin
+      remote_src: yes
 
     - name: Ensure write permissions on sudoers file
       file:
@@ -62,6 +63,7 @@
         dest: "/home/{{ user_name }}/.ssh/authorized_keys"
         owner: "{{ user_name }}"
         mode: '0600'
+      remote_src: yes
 
     - name: Create .ssh directory for user
       file:
