@@ -32,55 +32,26 @@
         user_pwd: "{{ default_pwd }}"
       when: beslab_pwd_env is not defined
 
-      
-    - name: Create user
-      user:
-        name: "{{ user_name }}"
+    #create user groups admin or user defined
+    - name: Create user supplied group if does not exists
+      ansible.builtin.group:
+        name: "{{ user_group }}"
+        state: present
+      become: true
+
+    # Add oah user if OAH_USER env variable set or oah_user ansible variable is set
+    - name: check and add oah user if OAH_USER env variable set or oah_user ansible variable is set
+      user: 
+        name: "{{ user_name }}" 
         password: "{{ user_pwd }}"
-        shell: /bin/bash
-        createhome: yes
+        group: "{{ user_group }}"
+        system: "{{ user_system }}"
+        state: present
+      register: user_details
+      become: true
 
-    - name: Copy sudoers file
-      ansible.builtin.copy:
-        src: /etc/sudoers.d/90-cloud-init-users
-        dest: /etc/sudoers.d/admin
-        remote_src: yes
 
-    - name: Ensure write permissions on sudoers file
-      file:
-        path: /etc/sudoers.d/admin
-        mode: 'u+w'
-
-    - name: Replace username in sudoers file
-      replace:
-        path: /etc/sudoers.d/admin
-        regexp: '^ubuntu'
-        replace: "{{ user_name }}"
-
-    - name: Copy SSH public key to authorized_keys
-      ansible.builtin.copy:
-        src: "/home/{{ user_name }}/.ssh/id_rsa.pub"
-        dest: "/home/{{ user_name }}/.ssh/authorized_keys"
-        owner: "{{ user_name }}"
-        mode: '0600'
-        remote_src: yes
-
-    - name: Create .ssh directory for user
-      file:
-        path: "/home/{{ user_name }}/.ssh"
-        state: directory
-        owner: "{{ user_name }}"
-        group: "{{ user_name }}"
-        mode: '0700'
-
-    - name: Copy authorized_keys to user's .ssh directory
-      ansible.builtin.copy:
-        src: "/home/{{ user_name }}/.ssh/authorized_keys"
-        dest: "/home/{{ user_name }}/.ssh/authorized_keys"
-        owner: "{{ user_name }}"
-        group: "{{ user_name }}"
-        mode: '0600'
-        remote_src: yes
+    
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
