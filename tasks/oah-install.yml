@@ -258,78 +258,78 @@
         enabled: yes
   when: lookup('env', 'BESLAB_IMAGE_REPOS', default='') == 'docker'
   
-- name: Install fossology
-  block:
-    - name: Install required packages for Docker
-      apt:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - apt-transport-https
-        - ca-certificates
-        - curl
-        - gnupg
-        - lsb-release
-      become: true
+# - name: Install fossology
+#   block:
+#     - name: Install required packages for Docker
+#       apt:
+#         name: "{{ item }}"
+#         state: present
+#       with_items:
+#         - apt-transport-https
+#         - ca-certificates
+#         - curl
+#         - gnupg
+#         - lsb-release
+#       become: true
 
-    - name: Update apt cache
-      apt:
-        update_cache: yes
+#     - name: Update apt cache
+#       apt:
+#         update_cache: yes
 
 
-    - name: Add Docker GPG key
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+#     - name: Add Docker GPG key
+#       apt_key:
+#         url: https://download.docker.com/linux/ubuntu/gpg
+#         state: present
 
-    - name: Add Docker APT repository
-      apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
-        state: present
+#     - name: Add Docker APT repository
+#       apt_repository:
+#         repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+#         state: present
 
-    - name: Install Docker
-      become: yes
-      apt:
-        name: "{{ item }}"
-        state: present
-      with_items: 
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-        - docker-buildx-plugin
-        - docker-compose-plugin
+#     - name: Install Docker
+#       become: yes
+#       apt:
+#         name: "{{ item }}"
+#         state: present
+#       with_items: 
+#         - docker-ce
+#         - docker-ce-cli
+#         - containerd.io
+#         - docker-buildx-plugin
+#         - docker-compose-plugin
 
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
+#     - name: Ensure Docker service is running
+#       service:
+#         name: docker
+#         state: started
+#         enabled: yes
 
-    - name: Check if user exist in docker group
-      ansible.builtin.shell: |
-        grep -q /etc/group -e "docker" 
-      register: result
+#     - name: Check if user exist in docker group
+#       ansible.builtin.shell: |
+#         grep -q /etc/group -e "docker" 
+#       register: result
 
-    - name: Adding user to docker group
-      become: yes
-      shell: |
-        gpasswd -a $USER docker
-        newgrp docker
-      when: result.rc != 0
+#     - name: Adding user to docker group
+#       become: yes
+#       shell: |
+#         gpasswd -a $USER docker
+#         newgrp docker
+#       when: result.rc != 0
 
-    - name: Make sure docker is started
-      service:
-        name: docker
-        state: started
+#     - name: Make sure docker is started
+#       service:
+#         name: docker
+#         state: started
 
-    - name: Pulling fossology image
-      become: yes
-      community.docker.docker_image:
-        name: fossology/fossology
-        source: pull
-        state: present
-        use_ssh_client: true
-  when: lookup('env', 'BESLAB_LICENSE_COMPLIANCE', default='') == 'fossology'
+#     - name: Pulling fossology image
+#       become: yes
+#       community.docker.docker_image:
+#         name: fossology/fossology
+#         source: pull
+#         state: present
+#         use_ssh_client: true
+  # when: lookup('env', 'BESLAB_LICENSE_COMPLIANCE', default='') == 'fossology'
 
 - name: Check if git exists
   shell: which git
