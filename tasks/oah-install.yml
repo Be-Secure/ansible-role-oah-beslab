@@ -41,10 +41,10 @@
         createhome: yes
 
     - name: Copy sudoers file
-      copy:
+      ansible.builtin.copy:
         src: /etc/sudoers.d/90-cloud-init-users
         dest: /etc/sudoers.d/admin
-      remote_src: yes
+        remote_src: yes
 
     - name: Ensure write permissions on sudoers file
       file:
@@ -58,12 +58,12 @@
         replace: "{{ user_name }}"
 
     - name: Copy SSH public key to authorized_keys
-      copy:
+      ansible.builtin.copy:
         src: "/home/{{ user_name }}/.ssh/id_rsa.pub"
         dest: "/home/{{ user_name }}/.ssh/authorized_keys"
         owner: "{{ user_name }}"
         mode: '0600'
-      remote_src: yes
+        remote_src: yes
 
     - name: Create .ssh directory for user
       file:
@@ -74,12 +74,13 @@
         mode: '0700'
 
     - name: Copy authorized_keys to user's .ssh directory
-      copy:
+      ansible.builtin.copy:
         src: "/home/{{ user_name }}/.ssh/authorized_keys"
         dest: "/home/{{ user_name }}/.ssh/authorized_keys"
         owner: "{{ user_name }}"
         group: "{{ user_name }}"
         mode: '0600'
+        remote_src: yes
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
