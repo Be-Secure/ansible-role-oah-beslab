@@ -276,14 +276,6 @@
       apt:
         update_cache: yes
 
-    - name: Install required packages
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - software-properties-common
-        state: present
 
     - name: Add Docker GPG key
       apt_key:
@@ -296,6 +288,7 @@
         state: present
 
     - name: Install Docker
+      become: yes
       apt:
         name: "{{ item }}"
         state: present
@@ -335,6 +328,7 @@
         name: fossology/fossology
         source: pull
         state: present
+        use_ssh_client: true
   when: lookup('env', 'BESLAB_LICENSE_COMPLIANCE', default='') == 'fossology'
 
 - name: Check if git exists
