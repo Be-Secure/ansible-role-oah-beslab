@@ -51,15 +51,12 @@
       user:
         name: "{{ user_name }}"
         groups: sudo
-        append: yes
-    
+        append: yes 
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
 
 - name: Install java
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_JAVA_VERSION environment variable is set
       shell: echo $BESLAB_JAVA_VERSION
@@ -101,8 +98,6 @@
         state: present
 
 - name: Install python
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_PYTHON_VERSION environment variable is set
       shell: echo $BESLAB_PYTHON_VERSION
@@ -144,22 +139,15 @@
     msg: "BESLAB_SAST value is {{ lookup('env', 'BESLAB_SAST') }}"
 
 - name: Check if sonarqube exists
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   stat:
     path: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}/{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
   register: sonarqube_dir
-
 - name: Install unzip package
   become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   apt:
     name: unzip
     state: present
-
 - name: Install sonarqube
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if java available
       shell: "java -version"
@@ -216,8 +204,6 @@
   when: lookup('env', 'BESLAB_SAST', default='') == 'sonarqube' and not sonarqube_dir.stat.exists
 
 - name: Install docker
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Install required packages for Docker
       apt:
@@ -346,23 +332,17 @@
   # when: lookup('env', 'BESLAB_LICENSE_COMPLIANCE', default='') == 'fossology'
 
 - name: Check if git exists
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   shell: which git
   register: git_path
   changed_when: false
 
 - name: Install git
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   apt:
     name: git
     state: present
   when: git_path.stdout == ''
 
 - name: Install spdx-sbom-generator
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_SBOM_VERSION environment variable is set
       shell: echo $BESLAB_SBOM_VERSION
@@ -405,8 +385,6 @@
   when: lookup('env', 'BESLAB_SBOM', default='') == 'spdx-sbom-generator'
 
 - name: Install package managers
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_PACKAGE_MANAGER set
       shell: echo $BESLAB_PACKAGE_MANAGER
@@ -446,8 +424,6 @@
   when: lookup('env', 'BESLAB_PACKAGE_MANAGER_SCOPE', default='') == 'public'
 
 - name: Setting up maven public artifactory
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_PUBLIC_ARTIFACT_REPO set
       shell: echo $BESLAB_PUBLIC_ARTIFACT_REPO
@@ -476,8 +452,6 @@
   when: lookup('env', 'BESLAB_PUBLIC_ARTIFACT_REPO', default='') == 'public'
 
 - name: Setting up jforg private artifactory
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Check if BESLAB_PRIVATE_ARTIFACT_REPOS set
       shell: echo $BESLAB_PRIVATE_ARTIFACT_REPOS
@@ -501,8 +475,6 @@
   when: lookup('env', 'BESLAB_PRIVATE_ARTIFACT_REPOS', default='') == 'private'
 
 - name: Setting up gitlab
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: Install required packages
       apt:
@@ -531,8 +503,6 @@
   when: lookup('env', 'BESLAB_CODE_COLLABORATION_PLATFORM_SCOPE', default='') == 'private'
 
 - name: Set up Ubuntu-desktop
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
   block:
     - name: install ubuntu-desktop
       become: yes
@@ -544,16 +514,6 @@
       ignore_errors: yes
       failed_when: false
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
-
-- name: Delete vagrant user
-  become: yes
-  become_user: "{{ lookup('env', 'BESLAB_USER') }}"
-  user:
-    name: "vagrant"
-    state: absent
-  when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
-
-
 
 
 
