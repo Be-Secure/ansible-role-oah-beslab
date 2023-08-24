@@ -42,8 +42,8 @@
       ansible.builtin.expect:
         command: passwd "{{ user_name }}"
         responses:
-          "New password:" : "{{ user_name }}"
-          "Retype new password:" : "{{ user_name }}"
+          "New password:" : "{{ user_pwd }}"
+          "Retype new password:" : "{{ user_pwd }}"
       become: yes
       become_user: root
       become_method: sudo
