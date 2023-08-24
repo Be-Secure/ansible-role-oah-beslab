@@ -32,26 +32,28 @@
         user_pwd: "{{ default_pwd }}"
       when: beslab_pwd_env is not defined
 
-    #create user groups admin or user defined
-    - name: Create user supplied group if does not exists
-      ansible.builtin.group:
-        name: "{{ user_group }}"
+    - name: Create a new user
+      user:
+        name: "{{ user_name }}"
         state: present
-      become: true
+        shell: /bin/bash
 
-    # Add oah user if OAH_USER env variable set or oah_user ansible variable is set
-    - name: check and add oah user if OAH_USER env variable set or oah_user ansible variable is set
-      user: 
-        name: "{{ user_name }}" 
-        password: "{{ user_pwd }}"
-        group: "{{ user_group }}"
-        system: "{{ user_system }}"
-        state: present
-      register: user_details
-      become: true
+    - name: Set password for the new user
+      ansible.builtin.expect:
+        command: passwd "{{ user_name }}"
+        responses:
+          "New password:" : "{{ user_name }}"
+          "Retype new password:" : "{{ user_name }}"
+      become: yes
+      become_user: root
+      become_method: sudo
 
-
-    
+    - name: Add new user to sudo group
+      user:
+        name: "{{ user_name }}"
+        groups: sudo
+        append: yes
+   
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
 
