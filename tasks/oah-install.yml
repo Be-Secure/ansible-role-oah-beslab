@@ -52,6 +52,12 @@
         name: "{{ user_name }}"
         groups: sudo
         append: yes
+    
+    - name: Delete vagrant user
+      become: yes
+      user:
+        name: "vagrant"
+        state: absent
    
   when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
 
