@@ -1,0 +1,22 @@
+---
+- name: Check if BESLAB_PRIVATE_ARTIFACT_REPOS set
+  shell: echo $BESLAB_PRIVATE_ARTIFACT_REPOS
+  register: private_artifact_repo_env
+  changed_when: false
+
+- name: Get repos from environment variable
+  set_fact:
+    private_repos: "{{ lookup('env', 'BESLAB_PRIVATE_ARTIFACT_REPOS') }}"
+  when: private_artifact_repo_env is defined and private_artifact_repo_env != ''
+
+- name: Get default repos
+  set_fact:
+    private_repos: "{{ default_public_artifact_repo }}"
+  when: private_artifact_repo_env is not defined
+
+- name: Install and configure JFrog CLI
+  shell: |
+    echo "deb https://releases.jfrog.io/artifactory/jfrog-debs xenial contrib" | sudo tee -a /etc/apt/sources.list &&    sudo apt update && sudo apt install -y jfrog-cli-v2-jf && jf intro
+  when: "'jfrog' in private_repos"
+
+ 

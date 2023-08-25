@@ -1,0 +1,520 @@
+---
+- name: Create user 
+  block:
+    
+    - name: Check if BESLAB_USER environment variable is set
+      shell: echo $BESLAB_USER
+      register: beslab_user_env
+      changed_when: false
+
+    - name: Check if BESLAB_PWD environment variable is set
+      shell: echo $BESLAB_PWD
+      register: beslab_pwd_env
+      changed_when: false
+
+    - name: Set user name from BESLAB_USER
+      set_fact:
+        user_name: "{{ lookup('env', 'BESLAB_USER') }}"
+      when: beslab_user_env is defined
+
+    - name: Set password from BESLAB_PWD
+      set_fact:
+        user_pwd: "{{ lookup('env', 'BESLAB_PWD') }}"
+      when: beslab_pwd_env is defined
+
+    - name: Set user from default
+      set_fact:
+        user_name: "{{ default_user_name }}"
+      when: beslab_user_env is not defined
+
+    - name: Set password from default
+      set_fact:
+        user_pwd: "{{ default_pwd }}"
+      when: beslab_pwd_env is not defined
+
+    - name: Create user
+      user:
+        name: "{{ user_name }}"
+        state: present
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+
+
+    - name: Set password for the new user
+      user:
+        name: "{{ user_name }}"
+        password: "{{ user_pwd | password_hash('sha512') }}"  # Hash the password
+
+
+    - name: Add new user to sudo group
+      user:
+        name: "{{ user_name }}"
+        groups: sudo
+        append: yes 
+  when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
+
+
+
+- name: Install java
+  block:
+    - name: Check if BESLAB_JAVA_VERSION environment variable is set
+      shell: echo $BESLAB_JAVA_VERSION
+      register: java_version_env
+      changed_when: false
+
+    - name: Check Java version
+      shell: java -version 2>&1
+      register: java_output
+      ignore_errors: yes
+      changed_when: false
+
+
+    - name: Set Java version from env
+      set_fact:
+        java_version: "{{ lookup('env', 'BESLAB_JAVA_VERSION') }}"
+      when: java_version_env is defined
+
+    - name: Uninstall current java
+      apt:
+        name: "openjdk-*"
+        state: absent
+        purge: yes
+      when: java_output.stdout | regex_search(java_version) == false
+
+    - name: Set default Java version
+      set_fact:
+        java_version: "{{ java_default_version }}"
+      when: java_version_env is not defined
+
+    - name: Debug Java version
+      debug:
+        var: java_version  # Check the value of java_version (optional, for troubleshooting purposes)
+
+    - name: Install Java on Ubuntu
+      become: yes
+      apt:
+        name: "openjdk-{{ java_version }}-jdk"
+        state: present
+
+- name: Install python
+  block:
+    - name: Check if BESLAB_PYTHON_VERSION environment variable is set
+      shell: echo $BESLAB_PYTHON_VERSION
+      register: python_version_env
+      changed_when: false
+
+    - name: Check python version
+      shell: python3 --version 2>&1
+      register: python_output
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Set Python version from env
+      set_fact:
+        python_version: "{{ lookup('env', 'BESLAB_PYTHON_VERSION') }}"
+      when: python_version_env is defined and python_version_env != '' and python_output is not defined
+
+    - name: Install python
+      apt:
+        name: "{{ python_version }}"
+        state: present
+      when: python_output is not defined
+
+    - name: Check pip version
+      shell: python3 -m pip --version 2>&1
+      register: pip_version
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install pip for Python
+      package:
+        name: python-pip
+        state: latest
+      become: yes
+      when: pip_version is not defined
+
+- name: Print environment variable value
+  debug:
+    msg: "BESLAB_SAST value is {{ lookup('env', 'BESLAB_SAST') }}"
+
+- name: Check if sonarqube exists
+  stat:
+    path: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}/{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
+  register: sonarqube_dir
+- name: Install unzip package
+  become: yes
+  apt:
+    name: unzip
+    state: present
+- name: Install sonarqube
+  block:
+    - name: Check if java available
+      shell: "java -version"
+      register: java_output
+
+    - name: Install java
+      apt:
+        name: openjdk-11-jdk
+        state: present
+      when: java_output.stdout.find('Error') != -1
+
+    - name: Check sonarqube version
+      shell: echo $BESLAB_SAST_VERSION
+      register: sonarqube_version_env
+      changed_when: false
+
+    - name: Set version
+      set_fact:
+        sonarqube_version: "{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
+      when: sonarqube_version_env is defined and sonarqube_version_env != ''
+
+    - name: Set default version
+      set_fact:
+        sonarqube_version: "{{ sonarqube_default }}"
+      when: sonarqube_version_env is not defined
+
+    - name: Check artifact path
+      shell: echo $BESLAB_ARTIFACT_PATH
+      register: dest_env
+      changed_when: false
+
+    - name: Set path
+      set_fact:
+        dest: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}"
+      when: dest_env is defined
+
+    - name: Use default path
+      set_fact:
+        dest: "{{ default_sonarqube_path }}"
+      when: dest_env is not defined 
+
+    - name: Download sonarqube binary
+      get_url: 
+        url: "https://binaries.sonarsource.com/Distribution/sonarqube/{{ sonarqube_version }}.zip"
+        dest: "{{ dest }}"
+      become: yes
+
+    - name: Unarchive binary
+      unarchive:
+        src: "{{dest}}/{{sonarqube_version}}.zip"
+        dest: "{{ dest }}"
+        remote_src: yes
+      become: yes
+  when: lookup('env', 'BESLAB_SAST', default='') == 'sonarqube' and not sonarqube_dir.stat.exists
+
+- name: Install docker
+  block:
+    - name: Install required packages for Docker
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+      become: true
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker APT repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+    
+    - name: Install Docker
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items: 
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+  when: lookup('env', 'BESLAB_IMAGE_REPOS', default='') == 'docker'
+  
+# - name: Install fossology
+#   block:
+#     - name: Install required packages for Docker
+#       apt:
+#         name: "{{ item }}"
+#         state: present
+#       with_items:
+#         - apt-transport-https
+#         - ca-certificates
+#         - curl
+#         - gnupg
+#         - lsb-release
+#       become: true
+
+#     - name: Update apt cache
+#       apt:
+#         update_cache: yes
+
+
+#     - name: Add Docker GPG key
+#       apt_key:
+#         url: https://download.docker.com/linux/ubuntu/gpg
+#         state: present
+
+#     - name: Add Docker APT repository
+#       apt_repository:
+#         repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+#         state: present
+
+#     - name: Install Docker
+#       become: yes
+#       apt:
+#         name: "{{ item }}"
+#         state: present
+#       with_items: 
+#         - docker-ce
+#         - docker-ce-cli
+#         - containerd.io
+#         - docker-buildx-plugin
+#         - docker-compose-plugin
+
+#     - name: Ensure Docker service is running
+#       service:
+#         name: docker
+#         state: started
+#         enabled: yes
+
+#     - name: Check if user exist in docker group
+#       ansible.builtin.shell: |
+#         grep -q /etc/group -e "docker" 
+#       register: result
+
+#     - name: Adding user to docker group
+#       become: yes
+#       shell: |
+#         gpasswd -a $USER docker
+#         newgrp docker
+#       when: result.rc != 0
+
+#     - name: Make sure docker is started
+#       service:
+#         name: docker
+#         state: started
+
+#     - name: Pulling fossology image
+#       become: yes
+#       community.docker.docker_image:
+#         name: fossology/fossology
+#         source: pull
+#         state: present
+#         use_ssh_client: true
+  # when: lookup('env', 'BESLAB_LICENSE_COMPLIANCE', default='') == 'fossology'
+
+- name: Check if git exists
+  shell: which git
+  register: git_path
+  changed_when: false
+
+- name: Install git
+  apt:
+    name: git
+    state: present
+  when: git_path.stdout == ''
+
+- name: Install spdx-sbom-generator
+  block:
+    - name: Check if BESLAB_SBOM_VERSION environment variable is set
+      shell: echo $BESLAB_SBOM_VERSION
+      register: sbom_version_env
+      changed_when: false
+
+    - name: Check if artifact path is set
+      shell: echo $BESLAB_ARTIFACT_PATH
+      register: sbom_artifact_path
+      changed_when: false
+
+    - name: Set spdx sbom generator version from env
+      set_fact:
+        spdx_sbom_generator_version: "{{ lookup('env', 'BESLAB_SBOM_VERSION') }}"
+        dir: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH')}}"
+      when: sbom_version_env is defined and sbom_artifact_path is defined
+
+    - name: Use default version for spdx sbom generator
+      set_fact:
+        spdx_sbom_generator_version: "{{ default_spdx_sbom_generator_version }}"
+        dir: "{{ default_sbom_artifact_path }}"
+      when: sbom_version_env is not defined and sbom_artifact_path is not defined
+
+    - name: output dir var
+      debug:
+        var: dir
+
+    - name: Downloading binary
+      get_url:
+        url: https://github.com/opensbom-generator/spdx-sbom-generator/releases/download/{{ spdx_sbom_generator_version }}/spdx-sbom-generator-{{ spdx_sbom_generator_version }}-linux-amd64.tar.gz
+        dest: "{{ dir }}"
+      become: yes
+
+    - name: Extract the tar archive
+      unarchive:
+        src: "{{ dir }}/spdx-sbom-generator-{{ spdx_sbom_generator_version }}-linux-amd64.tar.gz"
+        dest: "{{ dir }}"   # Directory where the archive will be extracted
+        remote_src: yes              # Set to 'yes' if the 'src' path is on the remote host
+      become: yes
+  when: lookup('env', 'BESLAB_SBOM', default='') == 'spdx-sbom-generator'
+
+- name: Install package managers
+  block:
+    - name: Check if BESLAB_PACKAGE_MANAGER set
+      shell: echo $BESLAB_PACKAGE_MANAGER
+      register: package_managers_env
+      changed_when: false
+
+
+    - name: Get package managers from environment variable
+      set_fact:
+        package_managers: "{{ lookup('env', 'BESLAB_PACKAGE_MANAGER') }}"
+      when: package_managers_env is defined and package_managers_env != ''
+
+    - name: Get default package managers
+      set_fact:
+        package_managers: "{{ default_package_managers }}"
+      when: package_managers_env is not defined
+
+
+    - name: Install gradle
+      apt:
+        name: gradle
+        state: present
+      when: "'gradle' in package_managers"
+
+    - name: Install maven
+      become: yes
+      apt:
+        name: maven
+        state: present
+      when: "'maven' in package_managers"
+
+    - name: Install pip
+      package:
+        name: python3-pip
+        state: present
+      when: "'pip' in package_managers"
+  when: lookup('env', 'BESLAB_PACKAGE_MANAGER_SCOPE', default='') == 'public'
+
+- name: Setting up maven public artifactory
+  block:
+    - name: Check if BESLAB_PUBLIC_ARTIFACT_REPO set
+      shell: echo $BESLAB_PUBLIC_ARTIFACT_REPO
+      register: public_artifact_repo_env
+      changed_when: false
+
+    - name: Get repos from environment variable
+      set_fact:
+        public_repos: "{{ lookup('env', 'BESLAB_PUBLIC_ARTIFACT_REPO') }}"
+      when: public_artifact_repo_env is defined and public_artifact_repo_env != ''
+
+    - name: Get default repos
+      set_fact:
+        public_repos: "{{ default_public_artifact_repo }}"
+      when: public_artifact_repo_env is not defined
+
+    - name: Install java
+      include_tasks: oah-java.yml
+      when: "'maven' in public_repos"
+
+    - name: Install maven
+      apt:
+        name: maven
+        state: present
+      when: "'maven' in public_repos"
+  when: lookup('env', 'BESLAB_PUBLIC_ARTIFACT_REPO', default='') == 'public'
+
+- name: Setting up jforg private artifactory
+  block:
+    - name: Check if BESLAB_PRIVATE_ARTIFACT_REPOS set
+      shell: echo $BESLAB_PRIVATE_ARTIFACT_REPOS
+      register: private_artifact_repo_env
+      changed_when: false
+
+    - name: Get repos from environment variable
+      set_fact:
+        private_repos: "{{ lookup('env', 'BESLAB_PRIVATE_ARTIFACT_REPOS') }}"
+      when: private_artifact_repo_env is defined and private_artifact_repo_env != ''
+
+    - name: Get default repos
+      set_fact:
+        private_repos: "{{ default_public_artifact_repo }}"
+      when: private_artifact_repo_env is not defined
+
+    - name: Install and configure JFrog CLI
+      shell: |
+        echo "deb https://releases.jfrog.io/artifactory/jfrog-debs xenial contrib" | sudo tee -a /etc/apt/sources.list &&    sudo apt update && sudo apt install -y jfrog-cli-v2-jf && jf intro
+      when: "'jfrog' in private_repos"
+  when: lookup('env', 'BESLAB_PRIVATE_ARTIFACT_REPOS', default='') == 'private'
+
+- name: Setting up gitlab
+  block:
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      become: true
+      loop:
+        - ca-certificates
+        - curl
+        - openssh-server
+        - tzdata
+        - debian-archive-keyring
+        - lsb-release
+        - apt-transport-https 
+        - software-properties-common
+
+    - name: Configure GitLab repository 
+      shell: curl -sS https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+
+    - name: Install gitlab
+      become: yes
+      apt:
+        name: gitlab-ce
+        update_cache: yes
+  when: lookup('env', 'BESLAB_CODE_COLLABORATION_PLATFORM_SCOPE', default='') == 'private'
+
+- name: Set up Ubuntu-desktop
+  block:
+    - name: install ubuntu-desktop
+      become: yes
+      command: "{{ item }}"
+      with_items:
+              - apt-get -y update
+              - apt-get install -y --no-install-recommends ubuntu-desktop
+              - reboot
+      ignore_errors: yes
+      failed_when: false
+  when: lookup('env', 'BESLAB_VM_GUI', default='') == 'true'
+
+
+
+

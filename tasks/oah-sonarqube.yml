@@ -1,0 +1,58 @@
+---
+# tasks file for sonarqube
+
+- name: Check if java available
+  shell: "java -version"
+  register: java_output
+
+- name: Install java
+  apt:
+    name: openjdk-11-jdk
+    state: present
+  when: java_output.stdout.find('Error') != -1
+
+- name: Check sonarqube version
+  shell: echo $BESLAB_SAST_VERSION
+  register: sonarqube_version_env
+  changed_when: false
+
+- name: Set version
+  set_fact:
+    sonarqube_version: "{{ lookup('env', 'BESLAB_SAST_VERSION') }}"
+  when: sonarqube_version_env is defined and sonarqube_version_env != ''
+
+- name: Set default version
+  set_fact:
+    sonarqube_version: "{{ sonarqube_default }}"
+  when: sonarqube_version_env is not defined
+
+- name: Check artifact path
+  shell: echo $BESLAB_ARTIFACT_PATH
+  register: dest_env
+  changed_when: false
+
+- name: Set path
+  set_fact:
+    dest: "{{ lookup('env', 'BESLAB_ARTIFACT_PATH') }}"
+  when: dest_env is defined
+
+- name: Use default path
+  set_fact:
+    dest: "{{ default_sonarqube_path }}"
+  when: dest_env is not defined 
+
+- name: Download sonarqube binary
+  get_url: 
+    url: "https://binaries.sonarsource.com/Distribution/sonarqube/{{ sonarqube_version }}.zip"
+    dest: "{{ dest }}"
+  become: yes
+
+- name: Unarchive binary
+  unarchive:
+    src: "{{dest}}/{{sonarqube_version}}.zip"
+    dest: "{{ dest }}"
+    remote_src: yes
+  become: yes
+
+
+
